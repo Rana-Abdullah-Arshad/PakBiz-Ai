@@ -1,0 +1,7 @@
+{
+  "name": "PakBiz AI - Pakistan's #1 Business Automation SaaS",
+  "description": "A Pakistan-first AI-assisted platform for small business owners and freelancers to automate pricing, sales scripts, and ad captions without a database.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
