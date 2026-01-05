@@ -1,6 +1,12 @@
 {
   "name": "PakBiz AI - Pakistan's #1 Business Automation SaaS",
-  "description": "A Pakistan-first AI-assisted platform for small business owners and freelancers to automate pricing, sales scripts, and ad captions without a database.",
+  "short_name": "PakBiz",
+  "version": "2.1.0",
+  "description": "A stateless AI-assisted platform for Pakistani entrepreneurs to automate pricing, sales scripts, and captions.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#16a34a",
   "requestFramePermissions": [
     "camera"
   ]

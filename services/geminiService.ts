@@ -5,11 +5,11 @@ export class GeminiService {
   private ai: GoogleGenAI;
 
   /**
-   * Always obtain the API key exclusively from process.env.API_KEY || 'FAKE_API_KEY_FOR_DEVELOPMENT'.
+   * Always obtain the API key exclusively from process.env.API_KEY.
    * Do not allow passing an external key as per security guidelines.
    */
   constructor() {
-    this.ai = new GoogleGenAI({ apiKey: process.env.API_KEY || 'FAKE_API_KEY_FOR_DEVELOPMENT' });
+    this.ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   }
 
   /**
