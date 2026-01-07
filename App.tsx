@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { AppView, UserState, PlatformConfig } from './types';
 import { storageService } from './services/storageService';
+import { supabaseService } from './services/supabaseService';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import Home from './pages/Home';
@@ -15,17 +16,30 @@ const App: React.FC = () => {
   const [view, setView] = useState<AppView>(AppView.HOME);
   const [userState, setUserState] = useState<UserState>(storageService.getUserState());
   const [config, setConfig] = useState<PlatformConfig>(storageService.getAdminConfig());
+  const [isInitializing, setIsInitializing] = useState(true);
+
+  // Sync Global Configuration from Supabase on Mount
+  useEffect(() => {
+    const syncConfig = async () => {
+      const cloudConfig = await supabaseService.fetchConfig();
+      if (cloudConfig) {
+        setConfig(cloudConfig);
+        storageService.setAdminConfig(cloudConfig);
+      }
+      setIsInitializing(false);
+    };
+    syncConfig();
+  }, []);
 
   // Dynamic SEO Injection
   useEffect(() => {
+    if (isInitializing) return;
     const pageKey = view.toString() as keyof typeof config.seo.pages;
     const pageSeo = config.seo.pages[pageKey] || config.seo.pages.home;
     const { global } = config.seo;
 
-    // 1. Update Title
     document.title = `${pageSeo.title} ${global.titleSuffix}`;
 
-    // 2. Helper to update/create meta tags
     const updateMeta = (name: string, content: string, attr: 'name' | 'property' = 'name') => {
       let el = document.querySelector(`meta[${attr}="${name}"]`);
       if (!el) {
@@ -46,29 +60,24 @@ const App: React.FC = () => {
       el.setAttribute('href', href);
     };
 
-    // 3. Inject Basic Meta
     updateMeta('description', pageSeo.description || global.defaultDescription);
     updateMeta('keywords', pageSeo.keywords);
     updateMeta('robots', `${pageSeo.noindex ? 'noindex' : 'index'}, ${pageSeo.nofollow ? 'nofollow' : 'follow'}`);
     
-    // 4. Canonical URL
     const canonicalUrl = pageSeo.canonical || window.location.origin + (view === AppView.HOME ? '' : '/' + view);
     updateLink('canonical', canonicalUrl);
 
-    // 5. Inject Open Graph
     updateMeta('og:title', pageSeo.ogTitle || pageSeo.title, 'property');
     updateMeta('og:description', pageSeo.ogDescription || pageSeo.description, 'property');
     updateMeta('og:image', pageSeo.ogImage || global.defaultOgImage, 'property');
     updateMeta('og:type', 'website', 'property');
     updateMeta('og:locale', global.siteLanguage, 'property');
     
-    // 6. Inject Twitter
     updateMeta('twitter:card', pageSeo.twitterCard);
     updateMeta('twitter:title', pageSeo.ogTitle || pageSeo.title);
     updateMeta('twitter:description', pageSeo.ogDescription || pageSeo.description);
     updateMeta('twitter:image', pageSeo.ogImage || global.defaultOgImage);
 
-    // 7. Inject Schema.org JSON-LD if enabled
     if (global.enableSchema) {
       let script = document.getElementById('seo-schema');
       if (!script) {
@@ -98,7 +107,7 @@ const App: React.FC = () => {
       };
       script.textContent = JSON.stringify(schema);
     }
-  }, [view, config]);
+  }, [view, config, isInitializing]);
 
   // Update CSS Variables based on config
   useEffect(() => {
@@ -147,6 +156,17 @@ const App: React.FC = () => {
   };
 
   const renderView = () => {
+    if (isInitializing) {
+      return (
+        <div className="min-h-[80vh] flex items-center justify-center">
+          <div className="flex flex-col items-center">
+             <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mb-6"></div>
+             <p className="text-slate-400 font-black uppercase tracking-[0.4em] text-xs">Synchronizing Nodes...</p>
+          </div>
+        </div>
+      );
+    }
+
     switch (view) {
       case AppView.HOME:
         return <Home onNavigate={handleNavigate} isLicensed={userState.isLicensed} config={config} />;

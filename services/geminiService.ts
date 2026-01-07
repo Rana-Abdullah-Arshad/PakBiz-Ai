@@ -2,23 +2,21 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
 export class GeminiService {
-  private ai: GoogleGenAI;
-
   /**
-   * Always obtain the API key exclusively from process.env.API_KEY.
-   * Do not allow passing an external key as per security guidelines.
+   * Always initialize a new instance to ensure it uses the latest process.env.API_KEY
    */
-  constructor() {
-    this.ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  private getAI() {
+    return new GoogleGenAI({ apiKey: process.env.API_KEY });
   }
 
   /**
    * Generates content using gemini-3-flash-preview.
-   * Accesses .text property directly.
+   * Accesses .text property directly as per latest guidelines.
    */
   async generateContent(prompt: string, systemInstruction: string) {
     try {
-      const response = await this.ai.models.generateContent({
+      const ai = this.getAI();
+      const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: prompt,
         config: {
@@ -44,7 +42,7 @@ export class GeminiService {
     expectedAmount: number,
     platformDetails: { jazzCash: string, easypaisa: string, bank: string }
   ) {
-    const currentDate = new Date().toLocaleDateString('en-GB'); // Current date in DD/MM/YYYY
+    const currentDate = new Date().toLocaleDateString('en-GB');
     const currentISO = new Date().toISOString();
 
     const prompt = `
@@ -71,7 +69,8 @@ export class GeminiService {
     `;
 
     try {
-      const response = await this.ai.models.generateContent({
+      const ai = this.getAI();
+      const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: {
           parts: [
@@ -86,7 +85,6 @@ export class GeminiService {
         },
         config: {
           responseMimeType: "application/json",
-          // Recommended configuration for reliable JSON output
           responseSchema: {
             type: Type.OBJECT,
             properties: {
@@ -116,7 +114,6 @@ export class GeminiService {
         }
       });
 
-      // Directly access .text property from response
       const result = JSON.parse(response.text || '{}');
       return result;
     } catch (error) {

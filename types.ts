@@ -15,7 +15,11 @@ export type AIProvider = 'gemini' | 'openai' | 'openrouter' | 'deepseek';
 export interface AIConfig {
   provider: AIProvider;
   model: string;
-  customApiKey?: string;
+  apiKey?: string;
+  systemInstruction?: string;
+  temperature?: number;
+  topP?: number;
+  thinkingBudget?: number;
 }
 
 export interface CreditPack {

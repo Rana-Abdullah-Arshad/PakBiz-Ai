@@ -5,43 +5,42 @@ import { securityService } from "./securityService";
 
 export class AiService {
   private config: AIConfig;
-  private adminSecret: string;
+  private signingSecret: string;
+  private userKey?: string;
 
-  constructor(config: AIConfig, adminSecret: string) {
+  constructor(config: AIConfig, signingSecret: string, userKey?: string) {
     this.config = config;
-    this.adminSecret = adminSecret;
+    this.signingSecret = signingSecret;
+    this.userKey = userKey;
   }
 
   /**
-   * Internal helper to get a ready-to-use API key
+   * Generates content using the configured provider.
+   * Priority: userKey > encrypted platform key > process.env.API_KEY
    */
-  private async getDecryptedKey(): Promise<string> {
-    if (this.config.provider === 'gemini') return process.env.API_KEY || '';
-    if (!this.config.customApiKey) return '';
-    
-    // Decrypt the key using the platform's adminSecret
-    return await securityService.decrypt(this.config.customApiKey, this.adminSecret);
-  }
-
   async generateContent(prompt: string, systemInstruction: string) {
-    const activeKey = await this.getDecryptedKey();
-
     if (this.config.provider === 'gemini') {
-      const ai = new GoogleGenAI({ apiKey: activeKey });
+      const apiKey = this.userKey || process.env.API_KEY;
+      const ai = new GoogleGenAI({ apiKey });
       const response = await ai.models.generateContent({
         model: this.config.model || 'gemini-3-flash-preview',
         contents: prompt,
         config: {
           systemInstruction,
-          temperature: 0.7,
+          temperature: this.config.temperature || 0.7,
+          topP: this.config.topP || 0.95,
+          thinkingConfig: this.config.thinkingBudget ? { thinkingBudget: this.config.thinkingBudget } : undefined
         },
       });
       return response.text;
     } else {
-      return this.externalProviderCall(prompt, systemInstruction, activeKey);
+      return this.externalProviderCall(prompt, systemInstruction);
     }
   }
 
+  /**
+   * Verified payment screenshot using vision and reasoning.
+   */
   async verifyPayment(
     base64Image: string, 
     mimeType: string, 
@@ -49,11 +48,7 @@ export class AiService {
     expectedAmount: number,
     platformDetails: { jazzCash: string, easypaisa: string, bank: string }
   ) {
-    const activeKey = await this.getDecryptedKey();
-    const currentDateObj = new Date();
-    const currentDateStr = currentDateObj.toLocaleDateString('en-GB');
-    const currentISO = currentDateObj.toISOString();
-
+    const currentISO = new Date().toISOString();
     const prompt = `
       As a specialized Payment Audit AI for a Pakistani SaaS platform, verify this payment receipt. 
       STRICT VERIFICATION PARAMETERS:
@@ -78,41 +73,37 @@ export class AiService {
       }
     `;
 
-    if (this.config.provider === 'gemini') {
-      const ai = new GoogleGenAI({ apiKey: activeKey });
-      const response = await ai.models.generateContent({
-        model: this.config.model || 'gemini-3-flash-preview',
-        contents: {
-          parts: [
-            { text: prompt },
-            { inlineData: { data: base64Image, mimeType: mimeType } }
-          ]
-        },
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              isValid: { type: Type.BOOLEAN },
-              reason: { type: Type.STRING },
-              extractedTID: { type: Type.STRING },
-              extractedAmount: { type: Type.NUMBER },
-              extractedDate: { type: Type.STRING }
-            },
-            required: ["isValid", "reason", "extractedTID", "extractedAmount", "extractedDate"],
-          }
+    // Payment verification always uses system key for platform security
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: {
+        parts: [
+          { text: prompt },
+          { inlineData: { data: base64Image, mimeType: mimeType } }
+        ]
+      },
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            isValid: { type: Type.BOOLEAN },
+            reason: { type: Type.STRING },
+            extractedTID: { type: Type.STRING },
+            extractedAmount: { type: Type.NUMBER },
+            extractedDate: { type: Type.STRING }
+          },
+          required: ["isValid", "reason", "extractedTID", "extractedAmount", "extractedDate"],
         }
-      });
-      return JSON.parse(response.text || '{}');
-    } else {
-      return this.externalProviderCall(prompt, "Respond only in JSON.", activeKey, true, base64Image, mimeType);
-    }
+      }
+    });
+    return JSON.parse(response.text || '{}');
   }
 
   private async externalProviderCall(
     prompt: string, 
-    systemInstruction: string, 
-    apiKey: string,
+    systemInstruction?: string,
     isVision: boolean = false, 
     base64Image?: string, 
     mimeType?: string
@@ -123,10 +114,21 @@ export class AiService {
       deepseek: 'https://api.deepseek.com/chat/completions'
     };
 
-    if (!apiKey) throw new Error(`${this.config.provider.toUpperCase()} API Key is missing or incorrectly decrypted.`);
+    // Use userKey if available, else decrypt platform key, else fallback to env
+    let apiKey = this.userKey || process.env.API_KEY; 
+    
+    if (!this.userKey && this.config.apiKey) {
+      try {
+        apiKey = await securityService.decrypt(this.config.apiKey, this.signingSecret);
+      } catch (e) {
+        console.error("Failed to decrypt Provider Key");
+      }
+    }
 
     const messages = [];
-    if (systemInstruction) messages.push({ role: 'system', content: systemInstruction });
+    if (systemInstruction || this.config.systemInstruction) {
+      messages.push({ role: 'system', content: systemInstruction || this.config.systemInstruction });
+    }
     
     if (isVision && base64Image) {
       messages.push({
@@ -149,22 +151,21 @@ export class AiService {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${apiKey}`,
-          ...(this.config.provider === 'openrouter' ? { 'HTTP-Referer': window.location.origin } : {})
         },
         body: JSON.stringify({
           model: this.config.model,
           messages,
-          response_format: { type: 'json_object' }
+          temperature: this.config.temperature || 0.7,
         })
       });
 
       const data = await response.json();
-      if (data.error) throw new Error(data.error.message);
+      if (!response.ok) throw new Error(data.error?.message || "AI Provider Error");
       
       const content = data.choices[0].message.content;
-      return typeof content === 'string' ? JSON.parse(content) : content;
+      return content;
     } catch (error: any) {
-      console.error("AI Provider Error:", error);
+      console.error("External AI Provider Error:", error);
       throw new Error(`AI Request Failed: ${error.message}`);
     }
   }

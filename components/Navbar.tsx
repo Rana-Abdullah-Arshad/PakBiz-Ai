@@ -15,79 +15,72 @@ interface NavbarProps {
 const Navbar: React.FC<NavbarProps> = ({ 
   view, onNavigate, credits, isLicensed, config, darkMode, onToggleDarkMode 
 }) => {
+  const getLinkStyles = (v: AppView) => {
+    const isActive = view === v;
+    return `text-sm font-bold uppercase tracking-wider px-4 py-2 rounded-xl transition-all duration-300 ${
+      isActive 
+        ? 'text-primary bg-primary/10 shadow-sm border border-primary/10' 
+        : 'text-slate-600 dark:text-slate-400 hover:text-primary hover:bg-slate-50 dark:hover:bg-slate-800'
+    }`;
+  };
+
   return (
     <nav className="sticky top-0 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 transition-colors">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
+        <div className="flex justify-between items-center h-20">
           <div 
             className="flex items-center cursor-pointer group" 
             onClick={() => onNavigate(AppView.HOME)}
           >
-            <div className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-xl mr-2 shadow-sm group-hover:scale-110 transition-transform bg-primary">
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center bg-primary text-white font-black text-xl mr-3 shadow-xl group-hover:scale-110 transition-transform border border-slate-100 dark:border-slate-700">
               {config.siteName.charAt(0)}
             </div>
-            <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-400">
+            <span className="text-2xl font-black tracking-tighter text-slate-900 dark:text-white">
               {config.siteName}
             </span>
           </div>
 
-          <div className="hidden md:flex items-center space-x-8">
-            <button 
-              onClick={() => onNavigate(AppView.HOME)}
-              className={`text-sm font-medium transition-colors ${view === AppView.HOME ? 'text-primary' : 'text-slate-600 dark:text-slate-400 hover:text-primary'}`}
-            >
+          <div className="hidden md:flex items-center space-x-2">
+            <button onClick={() => onNavigate(AppView.HOME)} className={getLinkStyles(AppView.HOME)}>
               Home
             </button>
-            <button 
-              onClick={() => onNavigate(AppView.PRICING)}
-              className={`text-sm font-medium transition-colors ${view === AppView.PRICING ? 'text-primary' : 'text-slate-600 dark:text-slate-400 hover:text-primary'}`}
-            >
+            <button onClick={() => onNavigate(AppView.PRICING)} className={getLinkStyles(AppView.PRICING)}>
               Pricing
             </button>
             {isLicensed && (
-              <button 
-                onClick={() => onNavigate(AppView.DASHBOARD)}
-                className={`text-sm font-medium transition-colors ${view === AppView.DASHBOARD ? 'text-primary' : 'text-slate-600 dark:text-slate-400 hover:text-primary'}`}
-              >
+              <button onClick={() => onNavigate(AppView.DASHBOARD)} className={getLinkStyles(AppView.DASHBOARD)}>
                 Dashboard
               </button>
             )}
-            <button 
-              onClick={() => onNavigate(AppView.ADMIN)}
-              className={`text-sm font-medium transition-colors ${view === AppView.ADMIN ? 'text-primary' : 'text-slate-600 dark:text-slate-400 hover:text-primary'}`}
-            >
+            <button onClick={() => onNavigate(AppView.ADMIN)} className={getLinkStyles(AppView.ADMIN)}>
               Admin
             </button>
           </div>
 
           <div className="flex items-center space-x-4">
-            {/* Dark Mode Toggle */}
             <button
               onClick={onToggleDarkMode}
-              className="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
+              className="p-3 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-2xl transition-all"
               aria-label="Toggle Dark Mode"
             >
               {darkMode ? (
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                </svg>
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
               ) : (
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                </svg>
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
               )}
             </button>
 
             {isLicensed && (
-              <div className="hidden sm:flex items-center bg-slate-50 dark:bg-slate-800 px-3 py-1 rounded-full border border-slate-100 dark:border-slate-700">
-                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 mr-2 uppercase tracking-tighter">Credits</span>
-                <span className="text-sm font-bold text-primary">{credits}</span>
+              <div className="hidden sm:flex items-center bg-primary/5 dark:bg-primary/10 px-4 py-2 rounded-2xl border border-primary/20 shadow-sm">
+                <span className="text-[10px] font-black text-primary/60 uppercase tracking-widest mr-2">Nodes</span>
+                <span className="text-base font-black text-primary leading-none">{credits}</span>
               </div>
             )}
+            
             {isLicensed ? (
               <button 
                 onClick={() => onNavigate(AppView.SETTINGS)}
-                className="p-2 text-slate-400 dark:text-slate-500 hover:text-primary transition-colors"
+                className={`p-3 rounded-2xl transition-all ${view === AppView.SETTINGS ? 'text-primary bg-primary/10' : 'text-slate-400 dark:text-slate-500 hover:text-primary hover:bg-slate-50 dark:hover:bg-slate-800'}`}
                 title="Settings"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -98,7 +91,7 @@ const Navbar: React.FC<NavbarProps> = ({
             ) : (
               <button 
                 onClick={() => onNavigate(AppView.PRICING)}
-                className="text-white px-5 py-2 rounded-full text-sm font-semibold transition-all shadow-lg hover:opacity-90 bg-primary shadow-primary/20"
+                className="bg-primary text-white px-7 py-3 rounded-2xl text-sm font-black transition-all shadow-xl shadow-primary/30 hover:opacity-90 active:scale-95"
               >
                 Get License
               </button>
